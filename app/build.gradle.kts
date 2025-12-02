@@ -91,4 +91,11 @@ dependencies {
     // ML Kit Barcode Scanning (QR incluido)
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.13.12")
+
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+
+    androidTestImplementation("io.mockk:mockk-android:1.13.12")
+
 }
