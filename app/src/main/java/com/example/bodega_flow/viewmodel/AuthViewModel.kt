@@ -7,63 +7,49 @@ import com.example.bodega_flow.data.LoginRequest
 import com.example.bodega_flow.data.RegisterRequest
 import com.example.bodega_flow.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class AuthUiState(
     val loading: Boolean = false,
-    val error: String? = null,
-    val user: AuthResponse? = null,
-    val registerSuccess: Boolean = false
+    val error: String? = null
 )
 
-class AuthViewModel : ViewModel() {
-
-    private val repo = AuthRepository()
+class AuthViewModel(
+    private val repo: AuthRepository = AuthRepository()
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
-    val uiState: StateFlow<AuthUiState> = _uiState
+    val uiState = _uiState.asStateFlow()
 
-    fun login(email: String, password: String) {
-        if (email.isBlank() || password.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                error = "Correo y contraseña son obligatorios"
-            )
-            return
-        }
-
+    fun login(
+        email: String,
+        password: String,
+        onSuccess: (AuthResponse) -> Unit
+    ) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(loading = true, error = null)
             try {
-                val auth = repo.login(LoginRequest(email = email, password = password))
-                _uiState.value = AuthUiState(
-                    loading = false,
-                    error = null,
-                    user = auth,
-                    registerSuccess = false
-                )
+                _uiState.update { it.copy(loading = true, error = null) }
+                val resp = repo.login(LoginRequest(email = email, password = password))
+                _uiState.update { it.copy(loading = false) }
+                onSuccess(resp)
             } catch (e: Exception) {
-                _uiState.value = AuthUiState(
-                    loading = false,
-                    error = e.message ?: "Error al iniciar sesión",
-                    user = null,
-                    registerSuccess = false
-                )
+                _uiState.update { it.copy(loading = false, error = e.message) }
             }
         }
     }
 
-    fun register(nombre: String, email: String, username: String, password: String) {
-        if (nombre.isBlank() || email.isBlank() || username.isBlank() || password.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                error = "Nombre, correo, usuario y contraseña son obligatorios"
-            )
-            return
-        }
-
+    fun register(
+        nombre: String,
+        email: String,
+        username: String,
+        password: String,
+        onSuccess: () -> Unit
+    ) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(loading = true, error = null, registerSuccess = false)
             try {
+                _uiState.update { it.copy(loading = true, error = null) }
                 repo.register(
                     RegisterRequest(
                         nombre = nombre,
@@ -72,30 +58,15 @@ class AuthViewModel : ViewModel() {
                         password = password
                     )
                 )
-                _uiState.value = _uiState.value.copy(
-                    loading = false,
-                    error = null,
-                    registerSuccess = true
-                )
+                _uiState.update { it.copy(loading = false) }
+                onSuccess()
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    loading = false,
-                    error = e.message ?: "Error al registrar usuario",
-                    registerSuccess = false
-                )
+                _uiState.update { it.copy(loading = false, error = e.message) }
             }
         }
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
-    }
-
-    fun clearUser() {
-        _uiState.value = _uiState.value.copy(user = null)
-    }
-
-    fun clearRegisterSuccess() {
-        _uiState.value = _uiState.value.copy(registerSuccess = false)
+        _uiState.update { it.copy(error = null) }
     }
 }

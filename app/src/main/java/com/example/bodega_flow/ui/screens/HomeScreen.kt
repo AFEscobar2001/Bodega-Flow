@@ -17,14 +17,18 @@ import androidx.compose.material3.TopAppBar
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bodega_flow.viewmodel.ProductoViewModel
 import androidx.compose.foundation.lazy.LazyRow
+import com.example.bodega_flow.data.AuthResponse
+import com.example.bodega_flow.data.UsuarioUpdateRequest
 import com.example.bodega_flow.viewmodel.MovimientoViewModel
+import com.example.bodega_flow.viewmodel.PerfilViewModel
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
 
 private enum class HomeSection {
-    PRODUCTOS, MOVIMIENTOS, PERFIL
+    PRODUCTOS, MOVIMIENTOS, BODEGAS, PERFIL
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +70,15 @@ fun HomeScreen(
                 )
 
                 DrawerItem(
+                    label = "Bodegas",
+                    selected = selectedSection == HomeSection.BODEGAS,
+                    onClick = {
+                        selectedSection = HomeSection.BODEGAS
+                        scope.launch { drawerState.close() }
+                    }
+                )
+
+                DrawerItem(
                     label = "Perfil",
                     selected = selectedSection == HomeSection.PERFIL,
                     onClick = {
@@ -73,6 +86,7 @@ fun HomeScreen(
                         scope.launch { drawerState.close() }
                     }
                 )
+
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -97,6 +111,7 @@ fun HomeScreen(
                             text = when (selectedSection) {
                                 HomeSection.PRODUCTOS -> "Productos"
                                 HomeSection.MOVIMIENTOS -> "Movimientos / Historia"
+                                HomeSection.BODEGAS -> "Bodegas"
                                 HomeSection.PERFIL -> "Perfil"
                             }
                         )
@@ -124,6 +139,7 @@ fun HomeScreen(
                 when (selectedSection) {
                     HomeSection.PRODUCTOS -> ProductosScreen()
                     HomeSection.MOVIMIENTOS -> MovimientosScreen()
+                    HomeSection.BODEGAS -> BodegasScreen()
                     HomeSection.PERFIL -> PerfilScreen()
                 }
             }
@@ -165,8 +181,10 @@ fun ProductosScreen(
     var showDialog by remember { mutableStateOf(false) }
     var codigo by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
+    var cantidadInicial by remember { mutableStateOf("") }
     var categoriaSeleccionadaId by remember { mutableStateOf<Long?>(null) }
     var unidadSeleccionadaId by remember { mutableStateOf<Long?>(null) }
+    var bodegaSeleccionadaId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(Unit) {
         productoViewModel.cargarCatalogosYProductos()
@@ -191,17 +209,11 @@ fun ProductosScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (uiState.loading) {
-            CircularProgressIndicator()
-        }
+        if (uiState.loading) CircularProgressIndicator()
 
         uiState.error?.let {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Text(it, color = MaterialTheme.colorScheme.error)
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -223,7 +235,7 @@ fun ProductosScreen(
                         Text(text = p.nombre, style = MaterialTheme.typography.bodyLarge)
                         Text("Código: ${p.codigo}", style = MaterialTheme.typography.bodySmall)
                         Text(
-                            "Categoría: ${p.categoriaId}  U.M.: ${p.unidadMedidaId}",
+                            "Categoría: ${p.categoriaNombre ?: p.categoriaId}  U.M.: ${p.unidadMedidaCodigo ?: p.unidadMedidaId}",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -232,7 +244,6 @@ fun ProductosScreen(
         }
     }
 
-    // ---------- DIÁLOGO DE CREAR PRODUCTO ----------
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -240,18 +251,31 @@ fun ProductosScreen(
                 TextButton(onClick = {
                     val catId = categoriaSeleccionadaId
                     val uId = unidadSeleccionadaId
-                    if (codigo.isNotBlank() && nombre.isNotBlank() && catId != null && uId != null) {
+                    val bId = bodegaSeleccionadaId
+                    val cant = cantidadInicial.toDoubleOrNull()
+
+                    if (codigo.isNotBlank()
+                        && nombre.isNotBlank()
+                        && catId != null
+                        && uId != null
+                        && bId != null
+                        && cant != null
+                    ) {
                         productoViewModel.crearProducto(
                             codigo = codigo,
                             nombre = nombre,
                             categoriaId = catId,
-                            unidadId = uId
+                            unidadId = uId,
+                            cantidadInicial = cant,
+                            bodegaId = bId
                         )
                         showDialog = false
                         codigo = ""
                         nombre = ""
+                        cantidadInicial = ""
                         categoriaSeleccionadaId = null
                         unidadSeleccionadaId = null
+                        bodegaSeleccionadaId = null
                     }
                 }) {
                     Text("Guardar")
@@ -289,14 +313,24 @@ fun ProductosScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // ---------- CATEGORIAS ----------
+                    OutlinedTextField(
+                        value = cantidadInicial,
+                        onValueChange = {
+                            cantidadInicial = it
+                            productoViewModel.clearError()
+                        },
+                        label = { Text("Cantidad inicial") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     if (uiState.categorias.isNotEmpty()) {
                         Text("Categoría:")
                         LazyRow {
                             items(uiState.categorias.size) { i ->
                                 val c = uiState.categorias[i]
                                 val selected = categoriaSeleccionadaId == c.id
-
                                 AssistChip(
                                     onClick = { categoriaSeleccionadaId = c.id },
                                     label = { Text(c.nombre) },
@@ -316,17 +350,308 @@ fun ProductosScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // ---------- UNIDADES ----------
                     if (uiState.unidades.isNotEmpty()) {
                         Text("Unidad:")
                         LazyRow {
                             items(uiState.unidades.size) { i ->
                                 val u = uiState.unidades[i]
                                 val selected = unidadSeleccionadaId == u.id
-
                                 AssistChip(
                                     onClick = { unidadSeleccionadaId = u.id },
                                     label = { Text(u.codigo) },
+                                    modifier = Modifier.padding(end = 4.dp),
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        containerColor =
+                                            if (selected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surface,
+                                        labelColor =
+                                            if (selected) MaterialTheme.colorScheme.onPrimary
+                                            else MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (uiState.bodegas.isNotEmpty()) {
+                        Text("Bodega inicial:")
+                        LazyRow {
+                            items(uiState.bodegas.size) { i ->
+                                val b = uiState.bodegas[i]
+                                val selected = bodegaSeleccionadaId == b.id
+                                AssistChip(
+                                    onClick = { bodegaSeleccionadaId = b.id },
+                                    label = { Text(b.nombre) },
+                                    modifier = Modifier.padding(end = 4.dp),
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        containerColor =
+                                            if (selected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surface,
+                                        labelColor =
+                                            if (selected) MaterialTheme.colorScheme.onPrimary
+                                            else MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun MovimientosScreen(
+    movimientoViewModel: MovimientoViewModel = viewModel(),
+    productoViewModel: ProductoViewModel = viewModel()
+) {
+    val movState by movimientoViewModel.uiState.collectAsState()
+    val prodState by productoViewModel.uiState.collectAsState()
+
+    var productoSeleccionadoId by remember { mutableStateOf<Long?>(null) }
+    var showDialog by remember { mutableStateOf(false) }
+    var cantidad by remember { mutableStateOf("") }
+    var comentario by remember { mutableStateOf("") }
+    var tipo by remember { mutableStateOf("VENTA") }
+    var bodegaOrigenSeleccionadaId by remember { mutableStateOf<Long?>(null) }
+    var bodegaDestinoSeleccionadaId by remember { mutableStateOf<Long?>(null) }
+
+    val context = LocalContext.current
+    val session = remember { SessionManager(context) }
+    val sessionUser = remember { session.getUser() }
+
+    LaunchedEffect(Unit) {
+        productoViewModel.cargarCatalogosYProductos()
+        movimientoViewModel.cargarCatalogos()
+    }
+
+    // Si no hay usuario en sesión, mostrar mensaje, no pantalla en blanco
+    if (sessionUser == null) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            Text("No hay usuario en sesión.", style = MaterialTheme.typography.titleMedium)
+        }
+        return
+    }
+
+    val usuarioId = sessionUser.id
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text("Movimientos / Historia", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // selector de producto
+        if (prodState.productos.isNotEmpty()) {
+            Text(
+                "Producto: " +
+                        (prodState.productos.find { it.id == productoSeleccionadoId }?.nombre
+                            ?: "-")
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            LazyRow {
+                items(prodState.productos.size) { i ->
+                    val p = prodState.productos[i]
+                    val selected = productoSeleccionadoId == p.id
+                    AssistChip(
+                        onClick = {
+                            productoSeleccionadoId = p.id
+                            movimientoViewModel.cargarMovimientos(p.id)
+                        },
+                        label = { Text(p.nombre) },
+                        modifier = Modifier.padding(end = 4.dp),
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor =
+                                if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surface,
+                            labelColor =
+                                if (selected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                }
+            }
+        } else {
+            Text("No hay productos cargados.")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = {
+                if (productoSeleccionadoId != null) {
+                    bodegaOrigenSeleccionadaId = movState.bodegas.firstOrNull()?.id
+                    bodegaDestinoSeleccionadaId = null
+                    tipo = "VENTA"
+                    cantidad = ""
+                    comentario = ""
+                    showDialog = true
+                }
+            },
+            enabled = productoSeleccionadoId != null
+        ) {
+            Text("Nuevo movimiento")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (movState.loading) CircularProgressIndicator()
+
+        movState.error?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (movState.movimientos.isEmpty()
+            && productoSeleccionadoId != null
+            && !movState.loading
+        ) {
+            Text("Sin movimientos para este producto.")
+        }
+
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(movState.movimientos.size) { index ->
+                val m = movState.movimientos[index]
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Tipo: ${m.tipo}")
+                        Text("Producto: ${m.productoNombre}")
+                        Text("Bodega: ${m.bodegaNombre}")
+                        Text("Cantidad: ${m.cantidad}")
+                        Text("Fecha: ${m.createdAt}")
+                        m.comentario?.takeIf { it.isNotBlank() }?.let {
+                            Text("Comentario: $it")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDialog && productoSeleccionadoId != null) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val cant = cantidad.toDoubleOrNull()
+                    val origenId = bodegaOrigenSeleccionadaId
+                    val destinoId = bodegaDestinoSeleccionadaId
+
+                    val trasladoValido =
+                        tipo == "VENTA" ||
+                                (tipo == "TRASLADO" && destinoId != null && destinoId != origenId)
+
+                    if (cant != null && origenId != null && trasladoValido) {
+                        movimientoViewModel.crearMovimiento(
+                            productoId = productoSeleccionadoId!!,
+                            bodegaOrigenId = origenId,
+                            bodegaDestinoId = if (tipo == "TRASLADO") destinoId else null,
+                            usuarioId = usuarioId,
+                            tipo = tipo,
+                            cantidad = cant,
+                            comentario = comentario.ifBlank { null }
+                        )
+                        showDialog = false
+                    }
+                }) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancelar")
+                }
+            },
+            title = { Text("Nuevo movimiento") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = cantidad,
+                        onValueChange = { cantidad = it },
+                        label = { Text("Cantidad") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = comentario,
+                        onValueChange = { comentario = it },
+                        label = { Text("Comentario (opcional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text("Tipo:")
+                    Row {
+                        listOf("VENTA", "TRASLADO").forEach { t ->
+                            val selected = tipo == t
+                            AssistChip(
+                                onClick = { tipo = t },
+                                label = { Text(t) },
+                                modifier = Modifier.padding(end = 4.dp),
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor =
+                                        if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surface,
+                                    labelColor =
+                                        if (selected) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSurface
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (movState.bodegas.isNotEmpty()) {
+                        Text("Bodega origen:")
+                        LazyRow {
+                            items(movState.bodegas.size) { i ->
+                                val b = movState.bodegas[i]
+                                val selected = bodegaOrigenSeleccionadaId == b.id
+                                AssistChip(
+                                    onClick = { bodegaOrigenSeleccionadaId = b.id },
+                                    label = { Text(b.nombre) },
+                                    modifier = Modifier.padding(end = 4.dp),
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        containerColor =
+                                            if (selected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surface,
+                                        labelColor =
+                                            if (selected) MaterialTheme.colorScheme.onPrimary
+                                            else MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (tipo == "TRASLADO" && movState.bodegas.size > 1) {
+                        Text("Bodega destino:")
+                        LazyRow {
+                            items(movState.bodegas.size) { i ->
+                                val b = movState.bodegas[i]
+                                val selected = bodegaDestinoSeleccionadaId == b.id
+                                AssistChip(
+                                    onClick = { bodegaDestinoSeleccionadaId = b.id },
+                                    label = { Text(b.nombre) },
                                     modifier = Modifier.padding(end = 4.dp),
                                     colors = AssistChipDefaults.assistChipColors(
                                         containerColor =
@@ -348,217 +673,41 @@ fun ProductosScreen(
 
 
 @Composable
-fun MovimientosScreen(
-    movimientoViewModel: MovimientoViewModel = viewModel(),
-    productoViewModel: ProductoViewModel = viewModel()
+fun PerfilScreen(
+    perfilViewModel: PerfilViewModel = viewModel()
 ) {
-    val movState by movimientoViewModel.uiState.collectAsState()
-    val prodState by productoViewModel.uiState.collectAsState()
-
-    var productoSeleccionadoId by remember { mutableStateOf<Long?>(null) }
-    var showDialog by remember { mutableStateOf(false) }
-    var cantidad by remember { mutableStateOf("") }
-    var comentario by remember { mutableStateOf("") }
-    var tipo by remember { mutableStateOf("IN") }
-
     val context = LocalContext.current
     val session = remember { SessionManager(context) }
-    val usuarioId = session.getUser()?.id ?: return
+    val sessionUser = remember { session.getUser() }
+
+    if (sessionUser == null) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            Text("No hay usuario en sesión.", style = MaterialTheme.typography.titleMedium)
+        }
+        return
+    }
+
+    val uiState by perfilViewModel.uiState.collectAsState()
+
+    var nombre by remember { mutableStateOf(sessionUser.nombre) }
+    var email by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf(sessionUser.username) }
 
     LaunchedEffect(Unit) {
-        productoViewModel.cargarCatalogosYProductos()
-        movimientoViewModel.cargarCatalogos()
+        perfilViewModel.cargarUsuario(sessionUser.id)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text("Movimientos / Historia", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // ---------- SELECTOR DE PRODUCTO ----------
-        if (prodState.productos.isNotEmpty()) {
-            Text(
-                "Producto: " +
-                        (prodState.productos.find { it.id == productoSeleccionadoId }?.nombre ?: "-")
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            LazyRow {
-                items(prodState.productos.size) { i ->
-                    val p = prodState.productos[i]
-                    val selected = productoSeleccionadoId == p.id
-
-                    AssistChip(
-                        onClick = {
-                            productoSeleccionadoId = p.id
-                            movimientoViewModel.cargarMovimientos(p.id)
-                        },
-                        label = { Text(p.nombre) },
-                        modifier = Modifier.padding(end = 4.dp),
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor =
-                                if (selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surface,
-                            labelColor =
-                                if (selected) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurface
-                        )
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(
-            onClick = { if (productoSeleccionadoId != null) showDialog = true },
-            enabled = productoSeleccionadoId != null
-        ) {
-            Text("Nuevo movimiento")
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (movState.loading) CircularProgressIndicator()
-
-        movState.error?.let {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(it, color = MaterialTheme.colorScheme.error)
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (movState.movimientos.isEmpty() && productoSeleccionadoId != null && !movState.loading) {
-            Text("Sin movimientos para este producto.")
-        }
-
-        // ---------- LISTA ----------
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(movState.movimientos.size) { index ->
-                val m = movState.movimientos[index]
-
-                // De momento mostramos solo IDs porque el DTO no tiene nombre/descripcion
-                val motivoTexto = "Motivo ID: ${m.motivoId}"
-                val bodegaTexto = "Bodega ID: ${m.bodegaId}"
-
-                val fechaFormateada = try {
-                    OffsetDateTime.parse(m.createdAt)
-                        .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-                } catch (e: Exception) {
-                    m.createdAt
-                }
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    elevation = CardDefaults.cardElevation(2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Tipo: ${m.tipo}")
-                        Text("Cantidad: ${m.cantidad}")
-                        Text(motivoTexto)
-                        Text(bodegaTexto)
-                        Text("Fecha: $fechaFormateada")
-                    }
-                }
-            }
+    LaunchedEffect(uiState.usuario) {
+        uiState.usuario?.let { u ->
+            nombre = u.nombre
+            email = u.email
+            username = u.username
         }
     }
-
-    // ---------- DIÁLOGO ----------
-    if (showDialog && productoSeleccionadoId != null) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    val cant = cantidad.toDoubleOrNull()
-                    val motivoId = movState.motivos.firstOrNull()?.id ?: 1L
-                    val bodegaId = movState.bodegas.firstOrNull()?.id ?: 1L
-
-                    if (cant != null) {
-                        movimientoViewModel.crearMovimiento(
-                            productoId = productoSeleccionadoId!!,
-                            bodegaId = bodegaId,
-                            usuarioId = usuarioId,
-                            motivoId = motivoId,
-                            tipo = tipo,
-                            cantidad = cant,
-                            comentario = comentario.ifBlank { null }
-                        )
-                        showDialog = false
-                        cantidad = ""
-                        comentario = ""
-                        tipo = "IN"
-                    }
-                }) {
-                    Text("Guardar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Cancelar")
-                }
-            },
-            title = { Text("Nuevo movimiento") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = cantidad,
-                        onValueChange = { cantidad = it },
-                        label = { Text("Cantidad") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = comentario,
-                        onValueChange = { comentario = it },
-                        label = { Text("Comentario (opcional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text("Tipo:")
-
-                    Row {
-                        listOf("IN", "OUT", "ADJUST").forEach { t ->
-                            val selected = tipo == t
-
-                            AssistChip(
-                                onClick = { tipo = t },
-                                label = { Text(t) },
-                                modifier = Modifier.padding(end = 4.dp),
-                                colors = AssistChipDefaults.assistChipColors(
-                                    containerColor =
-                                        if (selected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.surface,
-                                    labelColor =
-                                        if (selected) MaterialTheme.colorScheme.onPrimary
-                                        else MaterialTheme.colorScheme.onSurface
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        )
-    }
-}
-
-
-
-@Composable
-fun PerfilScreen() {
-    val context = LocalContext.current
-    val session = remember { SessionManager(context) }
-    val user = remember { session.getUser() }
 
     Column(
         modifier = Modifier
@@ -568,14 +717,72 @@ fun PerfilScreen() {
         Text("Perfil", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (user != null) {
-            Text("ID: ${user.id}")
+        if (uiState.loading) {
+            CircularProgressIndicator()
+        }
+
+        uiState.error?.let {
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Nombre: ${user.nombre}")
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Usuario: ${user.username}")
-        } else {
-            Text("No hay usuario en sesión.")
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = nombre,
+            onValueChange = {
+                nombre = it
+                perfilViewModel.clearError()
+            },
+            label = { Text("Nombre") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = {
+                email = it
+                perfilViewModel.clearError()
+            },
+            label = { Text("Correo (opcional)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = username,
+            onValueChange = {
+                username = it
+                perfilViewModel.clearError()
+            },
+            label = { Text("Usuario") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                val req = UsuarioUpdateRequest(
+                    nombre = nombre,
+                    email = email.ifBlank { null },
+                    username = username
+                )
+                perfilViewModel.actualizarUsuario(sessionUser.id, req)
+
+                val updated = AuthResponse(
+                    id = sessionUser.id,
+                    nombre = nombre,
+                    username = username
+                )
+                session.saveSession(updated)
+            },
+            enabled = !uiState.loading
+        ) {
+            Text("Guardar cambios")
         }
     }
 }

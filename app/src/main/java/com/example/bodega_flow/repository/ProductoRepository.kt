@@ -12,43 +12,35 @@ class ProductoRepository {
 
     private val api = ApiClient.api
 
-    suspend fun getProductos(): List<ProductoDto> {
-        return try {
-            api.getProductos()
-        } catch (e: HttpException) {
-            throw Exception(parseHttpError(e))
-        } catch (e: Exception) {
-            throw Exception("Error al conectar con el servidor")
-        }
+    suspend fun getProductos(): List<ProductoDto> = try {
+        api.getProductos()
+    } catch (e: HttpException) {
+        throw Exception(parseHttpError(e))
+    } catch (e: Exception) {
+        throw Exception("Error al conectar con el servidor")
     }
 
-    suspend fun crearProducto(body: ProductoCreateDto): ProductoDto {
-        return try {
-            api.crearProducto(body)
-        } catch (e: HttpException) {
-            throw Exception(parseHttpError(e))
-        } catch (e: Exception) {
-            throw Exception("Error al conectar con el servidor")
-        }
+    suspend fun crearProducto(body: ProductoCreateDto): ProductoDto = try {
+        api.crearProducto(body)
+    } catch (e: HttpException) {
+        throw Exception(parseHttpError(e))
+    } catch (e: Exception) {
+        throw Exception("Error al conectar con el servidor")
     }
 
-    suspend fun getCategorias(): List<CategoriaDto> {
-        return try {
-            api.getCategorias()
-        } catch (e: HttpException) {
-            throw Exception(parseHttpError(e))
-        } catch (e: Exception) {
-            throw Exception("Error al conectar con el servidor")
-        }
+    suspend fun getCategorias(): List<CategoriaDto> = try {
+        api.getCategorias()
+    } catch (e: HttpException) {
+        throw Exception(parseHttpError(e))
+    } catch (e: Exception) {
+        throw Exception("Error al conectar con el servidor")
     }
 
-    suspend fun getUnidadesMedida(): List<UnidadMedidaDto> {
-        return try {
-            api.getUnidadesMedida()
-        } catch (e: HttpException) {
-            throw Exception(parseHttpError(e))
-        } catch (e: Exception) {
-            throw Exception("Error al conectar con el servidor")
-        }
+    suspend fun getUnidadesMedida(): List<UnidadMedidaDto> = try {
+        api.getUnidadesMedida()
+    } catch (e: HttpException) {
+        throw Exception(parseHttpError(e))
+    } catch (e: Exception) {
+        throw Exception("Error al conectar con el servidor")
     }
 }

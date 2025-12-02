@@ -1,12 +1,12 @@
 package com.example.bodega_flow.data
 
-import java.time.LocalDateTime
-
 data class ProductoCreateDto(
     val codigo: String,
     val nombre: String,
     val categoriaId: Long,
-    val unidadMedidaId: Long
+    val unidadMedidaId: Long,
+    val cantidadInicial: Double,
+    val bodegaId: Long? = null
 )
 
 data class ProductoDto(
@@ -14,13 +14,11 @@ data class ProductoDto(
     val codigo: String,
     val nombre: String,
     val categoriaId: Long,
+    val categoriaNombre: String?,
     val unidadMedidaId: Long,
-    val activo: Boolean
+    val unidadMedidaCodigo: String?,
+    val activo: Boolean,
+    val createdAt: String?
 )
 
-data class ExistenciaDto(
-    val id: Long,
-    val productoId: Long,
-    val bodegaId: Long,
-    val cantidad: Double
-)
+

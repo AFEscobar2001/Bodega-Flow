@@ -27,3 +27,9 @@ data class UsuarioDto(
     val username: String,
     val activo: Boolean
 )
+
+data class UsuarioUpdateRequest(
+    val nombre: String,
+    val email: String?,
+    val username: String
+)

@@ -31,7 +31,7 @@ fun LogoHeader(
                 .padding(horizontal = 24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Logo a la izquierda, más pequeño
+
             Image(
                 painter = painterResource(id = R.drawable.logo_flow),
                 contentDescription = null,
@@ -42,7 +42,7 @@ fun LogoHeader(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Texto a la derecha del logo
+
             Column(
                 modifier = Modifier.weight(1f)
             ) {

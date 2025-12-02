@@ -1,30 +1,28 @@
 package com.example.bodega_flow.repository
 
-import com.example.bodega_flow.data.BodegaDto
-import com.example.bodega_flow.data.MovimientoCreateDto
-import com.example.bodega_flow.data.MovimientoDto
-import com.example.bodega_flow.network.ApiClient
+import com.example.bodega_flow.data.UsuarioDto
+import com.example.bodega_flow.data.UsuarioUpdateRequest
 import com.example.bodega_flow.data.parseHttpError
+import com.example.bodega_flow.network.ApiClient
 import retrofit2.HttpException
 
-class MovimientoRepository {
+class UsuarioRepository {
 
     private val api = ApiClient.api
 
-    suspend fun crearMovimiento(body: MovimientoCreateDto): MovimientoDto = try {
-        api.crearMovimiento(body)
+    suspend fun getUsuario(id: Long): UsuarioDto = try {
+        api.getUsuario(id)
     } catch (e: HttpException) {
         throw Exception(parseHttpError(e))
     } catch (e: Exception) {
         throw Exception("Error al conectar con el servidor")
     }
 
-    suspend fun getMovimientosPorProducto(productoId: Long): List<MovimientoDto> = try {
-        api.getMovimientosPorProducto(productoId)
+    suspend fun actualizarUsuario(id: Long, body: UsuarioUpdateRequest): UsuarioDto = try {
+        api.actualizarUsuario(id, body)
     } catch (e: HttpException) {
         throw Exception(parseHttpError(e))
     } catch (e: Exception) {
         throw Exception("Error al conectar con el servidor")
     }
 }
-

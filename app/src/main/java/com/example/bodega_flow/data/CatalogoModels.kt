@@ -15,12 +15,6 @@ data class CategoriaDto(
     val activo: Boolean
 )
 
-data class BodegaDto(
-    val id: Long,
-    val nombre: String,
-    val ubicacion: String?,
-    val activo: Boolean
-)
 
 data class MotivoMovimientoDto(
     val id: Long,

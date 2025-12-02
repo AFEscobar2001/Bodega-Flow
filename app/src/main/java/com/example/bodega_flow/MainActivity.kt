@@ -1,5 +1,6 @@
 package com.example.bodega_flow
 
+import QrScannerScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,11 +10,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.bodega_flow.data.SessionManager
 import com.example.bodega_flow.ui.screens.AuthStartScreen
+import com.example.bodega_flow.ui.screens.BodegasScreen
 import com.example.bodega_flow.ui.screens.HomeScreen
 import com.example.bodega_flow.ui.screens.LoginScreen
 import com.example.bodega_flow.ui.screens.RegisterScreen
@@ -37,7 +41,6 @@ class MainActivity : ComponentActivity() {
 fun BodegaApp() {
     val navController = rememberNavController()
 
-    // AUTLOGIN: leer sesión
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     val startDestination = if (sessionManager.getUser() != null) {
@@ -71,7 +74,7 @@ fun BodegaApp() {
         composable("register") {
             RegisterScreen(
                 onRegisterSuccess = {
-                    navController.popBackStack() // vuelve a auth_start
+                    navController.popBackStack()
                 },
                 onBack = { navController.popBackStack() }
             )
@@ -87,5 +90,15 @@ fun BodegaApp() {
                 }
             )
         }
+
+        composable("scanner") {
+            QrScannerScreen(
+                onQrDetected = { valorQr ->
+                    navController.navigate("productDetail/$valorQr")
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
     }
 }
