@@ -90,15 +90,5 @@ fun BodegaApp() {
                 }
             )
         }
-
-        composable("scanner") {
-            QrScannerScreen(
-                onQrDetected = { valorQr ->
-                    navController.navigate("productDetail/$valorQr")
-                },
-                onBack = { navController.popBackStack() }
-            )
-        }
-
     }
 }

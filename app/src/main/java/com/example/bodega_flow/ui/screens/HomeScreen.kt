@@ -3,32 +3,28 @@ package com.example.bodega_flow.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.example.bodega_flow.data.SessionManager
-import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.bodega_flow.viewmodel.ProductoViewModel
-import androidx.compose.foundation.lazy.LazyRow
 import com.example.bodega_flow.data.AuthResponse
+import com.example.bodega_flow.data.SessionManager
 import com.example.bodega_flow.data.UsuarioUpdateRequest
 import com.example.bodega_flow.viewmodel.MovimientoViewModel
 import com.example.bodega_flow.viewmodel.PerfilViewModel
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
+import com.example.bodega_flow.viewmodel.ProductoViewModel
+import kotlinx.coroutines.launch
 
 
 private enum class HomeSection {
     PRODUCTOS, MOVIMIENTOS, BODEGAS, PERFIL
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +34,9 @@ fun HomeScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var selectedSection by remember { mutableStateOf(HomeSection.PRODUCTOS) }
+
+    val context = LocalContext.current
+    val sessionDebug = remember { SessionManager(context).getUser() }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -87,7 +86,6 @@ fun HomeScreen(
                     }
                 )
 
-
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Divider()
@@ -131,16 +129,32 @@ fun HomeScreen(
                 )
             }
         ) { innerPadding ->
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                when (selectedSection) {
-                    HomeSection.PRODUCTOS -> ProductosScreen()
-                    HomeSection.MOVIMIENTOS -> MovimientosScreen()
-                    HomeSection.BODEGAS -> BodegasScreen()
-                    HomeSection.PERFIL -> PerfilScreen()
+                // DEBUG DE SESIÓN
+                Text(
+                    text = "Sesión actual: " +
+                            (sessionDebug?.id?.toString() ?: "null") + " / " +
+                            (sessionDebug?.nombre ?: "sin nombre") + " / " +
+                            (sessionDebug?.username ?: "sin username"),
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    when (selectedSection) {
+                        HomeSection.PRODUCTOS -> ProductosScreen()
+                        HomeSection.MOVIMIENTOS -> MovimientosScreen()
+                        HomeSection.BODEGAS -> BodegasScreen()
+                        HomeSection.PERFIL -> PerfilScreen()
+                    }
                 }
             }
         }
@@ -428,7 +442,6 @@ fun MovimientosScreen(
         movimientoViewModel.cargarCatalogos()
     }
 
-    // Si no hay usuario en sesión, mostrar mensaje, no pantalla en blanco
     if (sessionUser == null) {
         Column(
             modifier = Modifier
@@ -450,7 +463,6 @@ fun MovimientosScreen(
         Text("Movimientos / Historia", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
 
-        // selector de producto
         if (prodState.productos.isNotEmpty()) {
             Text(
                 "Producto: " +
@@ -670,7 +682,6 @@ fun MovimientosScreen(
         )
     }
 }
-
 
 @Composable
 fun PerfilScreen(

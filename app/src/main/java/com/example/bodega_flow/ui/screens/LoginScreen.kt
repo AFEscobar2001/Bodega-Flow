@@ -32,11 +32,8 @@ fun LoginScreen(
         Text("Iniciar sesión", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (uiState.error != null) {
-            Text(
-                text = uiState.error ?: "",
-                color = MaterialTheme.colorScheme.error
-            )
+        uiState.error?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.height(8.dp))
         }
 
@@ -70,7 +67,7 @@ fun LoginScreen(
                     email = email,
                     password = password
                 ) { authResponse ->
-                    // AQUÍ se guarda realmente la sesión
+                    // SOLO si el backend respondió OK se ejecuta esto
                     sessionManager.saveSession(authResponse)
                     onLoginSuccess()
                 }
