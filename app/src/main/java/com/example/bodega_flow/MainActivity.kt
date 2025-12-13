@@ -22,6 +22,7 @@ import com.example.bodega_flow.ui.screens.HomeScreen
 import com.example.bodega_flow.ui.screens.LoginScreen
 import com.example.bodega_flow.ui.screens.RegisterScreen
 import com.example.bodega_flow.ui.theme.BodegaFlowTheme
+import com.example.bodega_flow.util.QrParser
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,5 +91,36 @@ fun BodegaApp() {
                 }
             )
         }
+
+
+                composable("scanner") {
+                    QrScannerScreen(
+                        onQrDetected = { raw ->
+                            val bodegaId = QrParser.parseBodegaId(raw)
+                            if (bodegaId != null) {
+                                navController.navigate("bodegas?openBodegaId=$bodegaId") {
+                                    popUpTo("home") { inclusive = false }
+                                }
+                            } else {
+                                // si el QR no es bodega, vuelve o muestra error (si tienes snackbar)
+                                navController.popBackStack()
+                            }
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+
+
+        composable(
+            route = "bodegas?openBodegaId={openBodegaId}",
+            arguments = listOf(navArgument("openBodegaId") {
+                type = NavType.LongType
+                defaultValue = -1L
+            })
+        ) { backStackEntry ->
+            val openId = backStackEntry.arguments?.getLong("openBodegaId") ?: -1L
+            BodegasScreen(openBodegaId = if (openId > 0) openId else null)
+        }
+
     }
 }
